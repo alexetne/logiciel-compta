@@ -308,17 +308,29 @@ Les prochains modules du back devront être organisés par domaine (`auth`, `org
 
 - Node.js `22` ou supérieur ;
 - npm `10` ou supérieur ;
-- PostgreSQL lorsque la persistance sera ajoutée.
+- Docker Desktop ou Docker Engine avec le plugin Compose pour PostgreSQL ;
+- PostgreSQL local n'est pas requis si le conteneur fourni est utilisé.
 
 ### Installation
 
 ```bash
 cp .env.example .env
 npm install
+npm run db:up
 npm run dev
 ```
 
 Le front est alors accessible sur [http://localhost:5173](http://localhost:5173) et l’API sur [http://localhost:3000](http://localhost:3000).
+
+PostgreSQL écoute sur `localhost:5432`. Au premier lancement, Compose crée automatiquement :
+
+- la base `compta_paramedicale` ;
+- l'utilisateur local `postgres` ;
+- le volume persistant `compta-paramedicale-postgres-data` ;
+- le schéma métier `app` ;
+- l'extension PostgreSQL `pgcrypto`.
+
+Les valeurs peuvent être modifiées dans `.env` avant le premier démarrage. Le script d'initialisation situé dans `docker/postgres/init/001-init.sql` n'est exécuté que lorsque le volume est vide.
 
 ### Scripts disponibles
 
@@ -327,6 +339,10 @@ Le front est alors accessible sur [http://localhost:5173](http://localhost:5173)
 | `npm run dev` | Lance le back et le front simultanément |
 | `npm run dev:api` | Lance uniquement l’API avec rechargement automatique |
 | `npm run dev:web` | Lance uniquement Vite |
+| `npm run db:up` | Crée et démarre PostgreSQL en arrière-plan |
+| `npm run db:status` | Affiche l'état et la santé du conteneur PostgreSQL |
+| `npm run db:logs` | Suit les journaux PostgreSQL |
+| `npm run db:down` | Arrête PostgreSQL en conservant les données |
 | `npm run build` | Compile tous les workspaces |
 | `npm run typecheck` | Vérifie les types sans générer de fichiers |
 | `npm run lint` | Analyse la qualité du code |
@@ -341,9 +357,17 @@ Le front est alors accessible sur [http://localhost:5173](http://localhost:5173)
 | `API_PORT` | `3000` | Port d’écoute de l’API |
 | `WEB_URL` | `http://localhost:5173` | Origine autorisée par CORS |
 | `VITE_API_URL` | `http://localhost:3000/api` | URL de l’API utilisée par le navigateur |
-| `DATABASE_URL` | — | Connexion PostgreSQL à activer avec la persistance |
+| `POSTGRES_DB` | `compta_paramedicale` | Base créée par le conteneur au premier lancement |
+| `POSTGRES_USER` | `postgres` | Utilisateur propriétaire de la base locale |
+| `POSTGRES_PASSWORD` | `postgres` | Mot de passe local, à changer hors développement |
+| `POSTGRES_PORT` | `5432` | Port PostgreSQL exposé sur la machine |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/compta_paramedicale` | Connexion utilisée par l'API lorsqu'un ORM sera ajouté |
 
 Ne jamais committer le fichier `.env` ou un secret. En production, les secrets doivent provenir d’un gestionnaire de secrets et être renouvelables.
+
+### Réinitialisation locale de PostgreSQL
+
+`npm run db:down` conserve les données. Pour recréer volontairement une base vide, arrêter Compose puis supprimer son volume avec `docker compose down --volumes`. Cette commande détruit toutes les données PostgreSQL locales et ne doit pas être utilisée sur un environnement partagé ou de production.
 
 ## API actuelle et cible
 
