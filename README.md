@@ -317,6 +317,7 @@ Les prochains modules du back devront être organisés par domaine (`auth`, `org
 cp .env.example .env
 npm install
 npm run db:up
+npm run db:setup
 npm run dev
 ```
 
@@ -343,6 +344,9 @@ Les valeurs peuvent être modifiées dans `.env` avant le premier démarrage. Le
 | `npm run db:status` | Affiche l'état et la santé du conteneur PostgreSQL |
 | `npm run db:logs` | Suit les journaux PostgreSQL |
 | `npm run db:down` | Arrête PostgreSQL en conservant les données |
+| `npm run db:migrate` | Applique les migrations SQL manquantes |
+| `npm run db:seed` | Crée ou actualise les données de démonstration |
+| `npm run db:setup` | Enchaîne migration et seed |
 | `npm run build` | Compile tous les workspaces |
 | `npm run typecheck` | Vérifie les types sans générer de fichiers |
 | `npm run lint` | Analyse la qualité du code |
@@ -400,6 +404,19 @@ Ne jamais committer le fichier `.env` ou un secret. En production, les secrets d
 | `/api/audit-events` | Consultation autorisée de la piste d’audit |
 
 Toutes les entrées devront être validées. Les listes devront utiliser pagination, tri et filtres bornés. Les erreurs devront retourner un identifiant stable, un message non sensible et un identifiant de corrélation.
+
+### API disponible en phase 1
+
+- `POST /api/auth/register` et `POST /api/auth/login` ;
+- `GET /api/me` et gestion des membres/rôles du cabinet ;
+- `GET/POST /api/categories` ;
+- `GET/POST /api/transactions` avec filtres, pagination et rapprochement manuel ;
+- `POST /api/imports/csv` pour les colonnes `date;label;amount;kind;category` ;
+- `GET/POST /api/documents` pour les justificatifs PDF, JPEG et PNG ;
+- `GET /api/dashboard` pour les agrégats et mouvements récents ;
+- `GET /api/audit-events` pour la piste d'audit du cabinet.
+
+Après `npm run db:setup`, le compte local est `demo@paramecompta.fr` avec le mot de passe `Demo123!`. Il est réservé au développement et ne doit jamais être reproduit en production.
 
 ## Modèle de données cible
 
@@ -476,13 +493,13 @@ Chaque calcul validé doit être reproductible avec les mêmes données et la m�
 
 ### Phase 1 — MVP comptable
 
-- [ ] PostgreSQL, migrations et jeux de données de développement
-- [ ] Authentification, cabinets, membres et rôles
-- [ ] Recettes, dépenses, catégories et filtres
-- [ ] Import CSV et rapprochement manuel
-- [ ] Dépôt et rattachement des justificatifs
-- [ ] Tableau de bord alimenté par les données réelles
-- [ ] Journal d’audit minimal
+- [x] PostgreSQL, migrations et jeux de données de développement
+- [x] Authentification, cabinets, membres et rôles
+- [x] Recettes, dépenses, catégories et filtres
+- [x] Import CSV et rapprochement manuel
+- [x] Dépôt et rattachement des justificatifs
+- [x] Tableau de bord alimenté par les données réelles
+- [x] Journal d’audit minimal
 
 ### Phase 2 — Rétrocessions
 

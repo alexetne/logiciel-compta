@@ -1,22 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { getDashboard, type DashboardData } from './api';
 
 const navigation = [
   ['dashboard', 'Tableau de bord'], ['account_balance_wallet', 'Rétrocessions'],
   ['receipt_long', 'Registre'], ['calculate', 'Déclarations'], ['settings', 'Paramètres'],
 ];
 
-const metrics = [
-  { label: 'Recettes totales', value: '42 850,00 €', icon: 'trending_up', tone: 'success', emphasis: '+12,5 %', detail: 'vs mois dernier' },
-  { label: 'Rétrocessions à verser', value: '12 400,00 €', icon: 'payments', tone: 'warning', emphasis: '8 dossiers', detail: 'en attente de calcul' },
-  { label: 'Bénéfice net', value: '30 450,00 €', icon: 'account_balance', tone: 'primary', emphasis: '71 %', detail: 'de marge opérationnelle' },
-];
-
-const chartData = [
+const fallbackChart = [
   { month: 'Fév.', value: 28500 }, { month: 'Mars', value: 33200 }, { month: 'Avr.', value: 30800 },
   { month: 'Mai', value: 38600 }, { month: 'Juin', value: 36500 }, { month: 'Juil.', value: 42850 },
 ];
 
-const transactions = [
+const fallbackTransactions = [
   { date: '16 juil. 2026', entity: 'Encaissements CPAM', type: 'Honoraires', amount: '2 840,00 €', status: 'Rapproché', tone: 'success' },
   { date: '15 juil. 2026', entity: 'Cabinet République', type: 'Rétrocession', amount: '− 1 250,00 €', status: 'En attente', tone: 'warning', negative: true },
   { date: '14 juil. 2026', entity: 'Mutuelle santé', type: 'Honoraires', amount: '960,00 €', status: 'Rapproché', tone: 'success' },
@@ -29,6 +25,24 @@ function Icon({ children }: { children: string }) {
 
 function App() {
   const [period, setPeriod] = useState<'monthly' | 'quarterly'>('monthly');
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dataState, setDataState] = useState<'loading' | 'live' | 'demo'>('loading');
+
+  useEffect(() => {
+    getDashboard().then((data) => { setDashboard(data); setDataState('live'); }).catch(() => setDataState('demo'));
+  }, []);
+
+  const euro = (cents: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+  const summary = dashboard?.summary;
+  const margin = summary?.incomeCents ? Math.round((summary.netCents / summary.incomeCents) * 100) : 0;
+  const metrics = [
+    { label: 'Recettes totales', value: summary ? euro(summary.incomeCents) : '42 850,00 €', icon: 'trending_up', tone: 'success', emphasis: dataState === 'live' ? 'Données réelles' : '+12,5 %', detail: dataState === 'live' ? 'ce mois-ci' : 'vs mois dernier' },
+    { label: 'Dépenses à traiter', value: summary ? euro(summary.expenseCents) : '12 400,00 €', icon: 'payments', tone: 'warning', emphasis: `${summary?.pendingCount ?? 8} éléments`, detail: 'à vérifier ou rapprocher' },
+    { label: 'Bénéfice net', value: summary ? euro(summary.netCents) : '30 450,00 €', icon: 'account_balance', tone: 'primary', emphasis: `${summary ? margin : 71} %`, detail: 'de marge opérationnelle' },
+  ];
+  const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'short' });
+  const chartData = dashboard?.chart.map((item) => ({ month: monthFormatter.format(new Date(`${item.month}-02T12:00:00`)), value: item.value / 100 })) ?? fallbackChart;
+  const transactions = dashboard?.recent.map((item) => ({ date: new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${item.transactionDate}T12:00:00`)), entity: item.label, type: item.categoryName ?? (item.kind === 'income' ? 'Recette' : 'Dépense'), amount: `${item.kind === 'expense' ? '− ' : ''}${euro(item.amountCents)}`, status: item.status === 'reconciled' ? 'Rapproché' : item.status === 'pending' ? 'En attente' : 'À vérifier', tone: item.status === 'reconciled' ? 'success' : item.status === 'pending' ? 'warning' : 'critical', negative: item.kind === 'expense' })) ?? fallbackTransactions;
 
   return (
     <div className="app-shell">
@@ -49,7 +63,7 @@ function App() {
         </header>
 
         <main id="dashboard">
-          <div className="page-heading"><h1>Tableau de bord financier</h1><p>Bonjour Camille. Voici l’état de votre cabinet ce mois-ci.</p></div>
+          <div className="page-heading"><div><h1>Tableau de bord financier</h1><p>Bonjour Camille. Voici l’état de votre cabinet ce mois-ci.</p></div><span className={`data-source ${dataState}`}>{dataState === 'live' ? 'API connectée' : dataState === 'loading' ? 'Connexion…' : 'Mode démonstration'}</span></div>
 
           <section className="metrics" aria-label="Indicateurs financiers">
             {metrics.map((metric) => <article className="metric-card" key={metric.label}>
@@ -64,7 +78,8 @@ function App() {
               <div className="chart" aria-label="Histogramme des recettes sur six mois">
                 <div className="chart-scale"><span>45 k€</span><span>30 k€</span><span>15 k€</span><span>0</span></div>
                 <div className="bars">{chartData.map((item, index) => {
-                  const height = (item.value / 45000) * 100;
+                  const maximum = Math.max(...chartData.map((point) => point.value), 1);
+                  const height = (item.value / maximum) * 92;
                   return <div className="bar-column" key={item.month}><span className="bar-value" style={{ bottom: `${height}%` }}>{Math.round(item.value / 100) / 10} k€</span><div className={`bar ${index === chartData.length - 1 ? 'current' : ''}`} style={{ height: `${height}%` }} /><small>{item.month}</small></div>;
                 })}</div>
               </div>

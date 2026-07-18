@@ -37,9 +37,11 @@ a { color: inherit; }
 .avatar { display: grid; place-items: center; width: 34px; height: 34px; margin-left: 6px; border-radius: 50%; background: #d4e0f8; color: #0040a2; font-size: 11px; font-weight: 700; }
 
 main { width: min(1440px, 100%); min-height: calc(100vh - 64px); margin: 0 auto; padding: 44px 40px 56px; }
-.page-heading { margin-bottom: 36px; }
+.page-heading { margin-bottom: 36px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .page-heading h1 { margin: 0 0 8px; font-size: 36px; line-height: 44px; letter-spacing: -.02em; }
 .page-heading p { margin: 0; color: #434654; font-size: 16px; line-height: 24px; }
+.data-source { margin-top: 8px; padding: 5px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.data-source.live { color: #17633a; background: #dff5e7; }.data-source.loading { color: #0040a2; background: #dae2ff; }.data-source.demo { color: #8a4b08; background: #ffead2; }
 .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 24px; }
 .card, .metric-card { background: #fff; border: 1px solid var(--border); border-radius: 4px; transition: box-shadow .2s ease; }
 .card:hover, .metric-card:hover { box-shadow: 0 4px 8px rgb(0 0 0 / 4%); }
