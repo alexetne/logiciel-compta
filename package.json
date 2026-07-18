@@ -1,0 +1,18 @@
+{
+  "name": "compta-paramedicale",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application de comptabilité et de rétrocessions pour les professionnels paramédicaux",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,magenta \"npm run dev -w @compta/api\" \"npm run dev -w @compta/web\"",
+    "dev:api": "npm run dev -w @compta/api",
+    "dev:web": "npm run dev -w @compta/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": { "concurrently": "^9.2.1" }
+}

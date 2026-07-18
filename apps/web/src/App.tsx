@@ -1,0 +1,95 @@
+import { useState } from 'react';
+
+const navigation = [
+  ['dashboard', 'Tableau de bord'], ['account_balance_wallet', 'Rétrocessions'],
+  ['receipt_long', 'Registre'], ['calculate', 'Déclarations'], ['settings', 'Paramètres'],
+];
+
+const metrics = [
+  { label: 'Recettes totales', value: '42 850,00 €', icon: 'trending_up', tone: 'success', emphasis: '+12,5 %', detail: 'vs mois dernier' },
+  { label: 'Rétrocessions à verser', value: '12 400,00 €', icon: 'payments', tone: 'warning', emphasis: '8 dossiers', detail: 'en attente de calcul' },
+  { label: 'Bénéfice net', value: '30 450,00 €', icon: 'account_balance', tone: 'primary', emphasis: '71 %', detail: 'de marge opérationnelle' },
+];
+
+const chartData = [
+  { month: 'Fév.', value: 28500 }, { month: 'Mars', value: 33200 }, { month: 'Avr.', value: 30800 },
+  { month: 'Mai', value: 38600 }, { month: 'Juin', value: 36500 }, { month: 'Juil.', value: 42850 },
+];
+
+const transactions = [
+  { date: '16 juil. 2026', entity: 'Encaissements CPAM', type: 'Honoraires', amount: '2 840,00 €', status: 'Rapproché', tone: 'success' },
+  { date: '15 juil. 2026', entity: 'Cabinet République', type: 'Rétrocession', amount: '− 1 250,00 €', status: 'En attente', tone: 'warning', negative: true },
+  { date: '14 juil. 2026', entity: 'Mutuelle santé', type: 'Honoraires', amount: '960,00 €', status: 'Rapproché', tone: 'success' },
+  { date: '12 juil. 2026', entity: 'Matériel de soins', type: 'Fournitures', amount: '− 184,20 €', status: 'À vérifier', tone: 'critical', negative: true },
+];
+
+function Icon({ children }: { children: string }) {
+  return <span className="material-symbols-outlined" aria-hidden="true">{children}</span>;
+}
+
+function App() {
+  const [period, setPeriod] = useState<'monthly' | 'quarterly'>('monthly');
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand"><strong>ParaméCompta</strong><span>Gestion financière paramédicale</span></div>
+        <nav aria-label="Navigation principale">
+          {navigation.map(([icon, label], index) => <a className={index === 0 ? 'active' : ''} href={`#${label}`} key={label}><Icon>{icon}</Icon><span>{label}</span></a>)}
+        </nav>
+        <button className="add-transaction"><Icon>add</Icon>Nouvelle transaction</button>
+      </aside>
+
+      <div className="workspace">
+        <header className="topbar">
+          <a className="product-name" href="#dashboard">ParaméCompta <b>Pro</b></a>
+          <label className="search"><Icon>search</Icon><input type="search" placeholder="Rechercher…" aria-label="Rechercher" /></label>
+          <nav aria-label="Navigation secondaire"><a className="active" href="#dashboard">Vue générale</a><a href="#reports">Rapports</a><a href="#documents">Documents</a></nav>
+          <div className="top-actions"><button aria-label="Notifications"><Icon>notifications</Icon><span className="notification-dot" /></button><button aria-label="Aide"><Icon>help_outline</Icon></button><span className="avatar">CM</span></div>
+        </header>
+
+        <main id="dashboard">
+          <div className="page-heading"><h1>Tableau de bord financier</h1><p>Bonjour Camille. Voici l’état de votre cabinet ce mois-ci.</p></div>
+
+          <section className="metrics" aria-label="Indicateurs financiers">
+            {metrics.map((metric) => <article className="metric-card" key={metric.label}>
+              <div className="metric-top"><div><p>{metric.label}</p><strong>{metric.value}</strong></div><span className={`metric-icon ${metric.tone}`}><Icon>{metric.icon}</Icon></span></div>
+              <div className="metric-detail"><b className={metric.tone}>{metric.emphasis}</b><span>{metric.detail}</span></div>
+            </article>)}
+          </section>
+
+          <section className="dashboard-grid">
+            <article className="card chart-card">
+              <div className="card-heading"><div><h2>Évolution des recettes</h2><p>Six derniers mois</p></div><div className="period-toggle"><button className={period === 'monthly' ? 'active' : ''} onClick={() => setPeriod('monthly')}>Mensuel</button><button className={period === 'quarterly' ? 'active' : ''} onClick={() => setPeriod('quarterly')}>Trimestriel</button></div></div>
+              <div className="chart" aria-label="Histogramme des recettes sur six mois">
+                <div className="chart-scale"><span>45 k€</span><span>30 k€</span><span>15 k€</span><span>0</span></div>
+                <div className="bars">{chartData.map((item, index) => {
+                  const height = (item.value / 45000) * 100;
+                  return <div className="bar-column" key={item.month}><span className="bar-value" style={{ bottom: `${height}%` }}>{Math.round(item.value / 100) / 10} k€</span><div className={`bar ${index === chartData.length - 1 ? 'current' : ''}`} style={{ height: `${height}%` }} /><small>{item.month}</small></div>;
+                })}</div>
+              </div>
+            </article>
+
+            <article className="card retrocession-card">
+              <div className="card-heading"><div><h2>Configurateur de rétrocession</h2><p>Aperçu de la règle active</p></div><span className="status warning">À valider</span></div>
+              <div className="split-config">
+                <div className="split-flow"><div><span>Honoraires</span><strong>150,00 €</strong></div><Icon>arrow_forward</Icon><div><span>Praticien · 80 %</span><strong>120,00 €</strong></div></div>
+                <div className="clinic-share"><span>Part cabinet · 20 %</span><strong>30,00 €</strong></div>
+                <button className="secondary-button"><Icon>tune</Icon>Modifier les règles</button>
+              </div>
+            </article>
+          </section>
+
+          <section className="card transactions-card">
+            <div className="card-heading"><div><h2>Transactions récentes</h2><p>Derniers mouvements enregistrés</p></div><a href="#ledger">Voir tout le registre</a></div>
+            <div className="table-scroll"><table><thead><tr><th>Date</th><th>Origine / bénéficiaire</th><th>Type</th><th>Montant</th><th>Statut</th><th><span className="sr-only">Actions</span></th></tr></thead>
+              <tbody>{transactions.map((transaction) => <tr key={`${transaction.date}-${transaction.entity}`}><td>{transaction.date}</td><td className="entity">{transaction.entity}</td><td>{transaction.type}</td><td className={`amount ${transaction.negative ? 'negative' : ''}`}>{transaction.amount}</td><td><span className={`status ${transaction.tone}`}>{transaction.status}</span></td><td><button className="view-button" aria-label={`Voir ${transaction.entity}`}><Icon>visibility</Icon></button></td></tr>)}</tbody>
+            </table></div>
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default App;
