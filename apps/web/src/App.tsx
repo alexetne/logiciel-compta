@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { getDashboard, type DashboardData } from './api';
+import Ledger from './Ledger';
 
 const navigation = [
   ['dashboard', 'Tableau de bord'], ['account_balance_wallet', 'Rétrocessions'],
@@ -25,6 +26,8 @@ function Icon({ children }: { children: string }) {
 
 function App() {
   const [period, setPeriod] = useState<'monthly' | 'quarterly'>('monthly');
+  const [page, setPage] = useState<'dashboard' | 'ledger'>('dashboard');
+  const [search, setSearch] = useState('');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dataState, setDataState] = useState<'loading' | 'live' | 'demo'>('loading');
 
@@ -49,7 +52,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand"><strong>ParaméCompta</strong><span>Gestion financière paramédicale</span></div>
         <nav aria-label="Navigation principale">
-          {navigation.map(([icon, label], index) => <a className={index === 0 ? 'active' : ''} href={`#${label}`} key={label}><Icon>{icon}</Icon><span>{label}</span></a>)}
+          {navigation.map(([icon, label], index) => <a className={(page === 'dashboard' && index === 0) || (page === 'ledger' && index === 2) ? 'active' : ''} href={`#${label}`} key={label} onClick={(event) => { if (index === 0 || index === 2) { event.preventDefault(); setPage(index === 0 ? 'dashboard' : 'ledger'); } }}><Icon>{icon}</Icon><span>{label}</span></a>)}
         </nav>
         <button className="add-transaction"><Icon>add</Icon>Nouvelle transaction</button>
       </aside>
@@ -57,12 +60,12 @@ function App() {
       <div className="workspace">
         <header className="topbar">
           <a className="product-name" href="#dashboard">ParaméCompta <b>Pro</b></a>
-          <label className="search"><Icon>search</Icon><input type="search" placeholder="Rechercher…" aria-label="Rechercher" /></label>
-          <nav aria-label="Navigation secondaire"><a className="active" href="#dashboard">Vue générale</a><a href="#reports">Rapports</a><a href="#documents">Documents</a></nav>
+          <label className="search"><Icon>search</Icon><input type="search" placeholder="Rechercher une transaction…" aria-label="Rechercher" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <nav aria-label="Navigation secondaire"><a className={page === 'dashboard' ? 'active' : ''} href="#dashboard" onClick={(event) => { event.preventDefault(); setPage('dashboard'); }}>Vue générale</a><a className={page === 'ledger' ? 'active' : ''} href="#reports" onClick={(event) => { event.preventDefault(); setPage('ledger'); }}>Rapports</a><a href="#documents">Documents</a></nav>
           <div className="top-actions"><button aria-label="Notifications"><Icon>notifications</Icon><span className="notification-dot" /></button><button aria-label="Aide"><Icon>help_outline</Icon></button><span className="avatar">CM</span></div>
         </header>
 
-        <main id="dashboard">
+        {page === 'dashboard' ? <main id="dashboard">
           <div className="page-heading"><div><h1>Tableau de bord financier</h1><p>Bonjour Camille. Voici l’état de votre cabinet ce mois-ci.</p></div><span className={`data-source ${dataState}`}>{dataState === 'live' ? 'API connectée' : dataState === 'loading' ? 'Connexion…' : 'Mode démonstration'}</span></div>
 
           <section className="metrics" aria-label="Indicateurs financiers">
@@ -101,7 +104,7 @@ function App() {
               <tbody>{transactions.map((transaction) => <tr key={`${transaction.date}-${transaction.entity}`}><td>{transaction.date}</td><td className="entity">{transaction.entity}</td><td>{transaction.type}</td><td className={`amount ${transaction.negative ? 'negative' : ''}`}>{transaction.amount}</td><td><span className={`status ${transaction.tone}`}>{transaction.status}</span></td><td><button className="view-button" aria-label={`Voir ${transaction.entity}`}><Icon>visibility</Icon></button></td></tr>)}</tbody>
             </table></div>
           </section>
-        </main>
+        </main> : <Ledger search={search} />}
       </div>
     </div>
   );

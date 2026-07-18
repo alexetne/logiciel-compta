@@ -2,7 +2,9 @@
 
 Application web de comptabilité simplifiée et de gestion des rétrocessions destinée aux professionnels paramédicaux libéraux, remplaçants, titulaires et cabinets de groupe.
 
-> **État du projet :** socle technique initial (`0.1.0`). Le tableau de bord et la route de santé de l’API sont opérationnels. Les modules métier décrits ci-dessous constituent le périmètre produit à construire progressivement et ne doivent pas être considérés comme déjà implémentés.
+> **État du projet :** version `0.2.0`. Le tableau de bord et le suivi comptable des transactions sont opérationnels. Les autres modules métier décrits ci-dessous constituent le périmètre produit à construire progressivement et ne doivent pas être considérés comme déjà implémentés.
+
+La stratégie de branches, le versionnement et la procédure de publication sont décrits dans [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Sommaire
 

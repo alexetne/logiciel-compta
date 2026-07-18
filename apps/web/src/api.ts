@@ -18,15 +18,43 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function authenticatedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  try { return await request<T>(path, options); }
+  catch (error) {
+    if (!sessionStorage.getItem('paramecompta_token')) { await loginDemo(); return request<T>(path, options); }
+    throw error;
+  }
+}
+
 export async function loginDemo(): Promise<void> {
   const result = await request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email: 'demo@paramecompta.fr', password: 'Demo123!' }) });
   sessionStorage.setItem('paramecompta_token', result.token);
 }
 
 export async function getDashboard(): Promise<DashboardData> {
-  try { return await request<DashboardData>('/dashboard'); }
-  catch (error) {
-    if (!sessionStorage.getItem('paramecompta_token')) { await loginDemo(); return request<DashboardData>('/dashboard'); }
-    throw error;
-  }
+  return authenticatedRequest<DashboardData>('/dashboard');
+}
+
+export type Transaction = DashboardData['recent'][number] & {
+  counterparty: string | null;
+  paymentMethod: string;
+  categoryId: string | null;
+};
+
+export type TransactionFilters = {
+  page?: number;
+  limit?: number;
+  kind?: 'income' | 'expense' | '';
+  status?: 'pending' | 'reconciled' | 'needs_review' | '';
+  search?: string;
+};
+
+export async function getTransactions(filters: TransactionFilters = {}): Promise<{ items: Transaction[]; total: number; page: number; limit: number }> {
+  const query = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') query.set(key, String(value)); });
+  return authenticatedRequest(`/transactions?${query.toString()}`);
+}
+
+export async function reconcileTransaction(id: string, status: Transaction['status']): Promise<void> {
+  await authenticatedRequest(`/transactions/${id}/reconcile`, { method: 'PATCH', body: JSON.stringify({ status }) });
 }
