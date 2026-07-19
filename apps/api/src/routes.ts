@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { audit } from './audit.js';
 import { config } from './config.js';
 import { pool } from './database/client.js';
+import { calculatePercentageRetrocession } from './domain/retrocession.js';
 import { type AuthenticatedRequest, HttpError, requireAuth, requireRole } from './http.js';
 import { hashPassword, verifyPassword } from './security/password.js';
 import { createToken } from './security/token.js';
@@ -76,6 +77,52 @@ apiRouter.get('/categories', async (request, response) => {
   const kind = z.enum(['income','expense']).optional().parse(request.query.kind);
   const result = await pool.query(`SELECT id,name,kind,code,is_default "isDefault" FROM app.categories WHERE organization_id=$1 AND ($2::text IS NULL OR kind=$2) ORDER BY kind,name`, [session.organizationId, kind ?? null]);
   response.json({ items: result.rows });
+});
+
+const retrocessionRuleSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  rate: z.number().min(0).max(100),
+  effectiveFrom: z.iso.date(),
+  effectiveTo: z.iso.date().nullable().optional(),
+  status: z.enum(['draft', 'active']).default('draft'),
+}).refine((input) => !input.effectiveTo || input.effectiveTo >= input.effectiveFrom, {
+  message: 'La date de fin doit être postérieure à la date de début',
+  path: ['effectiveTo'],
+});
+
+apiRouter.get('/retrocession-rules', async (request, response) => {
+  const { session } = request as AuthenticatedRequest;
+  const result = await pool.query(`SELECT id,name,rate::float8,effective_from "effectiveFrom",effective_to "effectiveTo",status,created_at "createdAt",updated_at "updatedAt" FROM app.retrocession_rules WHERE organization_id=$1 ORDER BY status='active' DESC,effective_from DESC,created_at DESC`, [session.organizationId]);
+  response.json({ items: result.rows });
+});
+
+apiRouter.post('/retrocession-rules', requireRole('owner','admin','manager'), async (request, response) => {
+  const { session } = request as AuthenticatedRequest;
+  const input = retrocessionRuleSchema.parse(request.body);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    if (input.status === 'active') await client.query(`UPDATE app.retrocession_rules SET status='archived',updated_at=now() WHERE organization_id=$1 AND status='active'`, [session.organizationId]);
+    const result = await client.query(`INSERT INTO app.retrocession_rules (organization_id,name,rate,effective_from,effective_to,status,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id,name,rate::float8,effective_from "effectiveFrom",effective_to "effectiveTo",status,created_at "createdAt"`, [session.organizationId,input.name,input.rate,input.effectiveFrom,input.effectiveTo ?? null,input.status,session.userId]);
+    await client.query('COMMIT');
+    await audit(session.organizationId,session.userId,'retrocession_rule.created','retrocession_rule',result.rows[0].id,{ rate: input.rate, status: input.status });
+    response.status(201).json(result.rows[0]);
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+});
+
+apiRouter.patch('/retrocession-rules/:id/activate', requireRole('owner','admin','manager'), async (request, response) => {
+  const { session } = request as AuthenticatedRequest;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const rule = await client.query('SELECT id FROM app.retrocession_rules WHERE id=$1 AND organization_id=$2', [request.params.id,session.organizationId]);
+    if (!rule.rowCount) throw new HttpError(404,'Règle de rétrocession introuvable');
+    await client.query(`UPDATE app.retrocession_rules SET status='archived',updated_at=now() WHERE organization_id=$1 AND status='active'`, [session.organizationId]);
+    const result = await client.query(`UPDATE app.retrocession_rules SET status='active',updated_at=now() WHERE id=$1 RETURNING id,name,rate::float8,effective_from "effectiveFrom",effective_to "effectiveTo",status`, [request.params.id]);
+    await client.query('COMMIT');
+    await audit(session.organizationId,session.userId,'retrocession_rule.activated','retrocession_rule',String(request.params.id));
+    response.json(result.rows[0]);
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
 });
 
 apiRouter.post('/categories', requireRole('owner','admin','manager'), async (request, response) => {
@@ -145,12 +192,16 @@ apiRouter.get('/documents', async (request, response) => { const { session } = r
 
 apiRouter.get('/dashboard', async (request, response) => {
   const { session } = request as AuthenticatedRequest;
-  const [summary, chart, recent] = await Promise.all([
+  const [summary, chart, recent, retrocessionRule] = await Promise.all([
     pool.query(`SELECT COALESCE(SUM(amount_cents) FILTER (WHERE kind='income'),0)::int income,COALESCE(SUM(amount_cents) FILTER (WHERE kind='expense'),0)::int expense,COUNT(*) FILTER (WHERE status<>'reconciled')::int pending FROM app.transactions WHERE organization_id=$1 AND transaction_date>=date_trunc('month',CURRENT_DATE)`, [session.organizationId]),
     pool.query(`WITH months AS (SELECT generate_series(date_trunc('month',CURRENT_DATE)-interval '5 months',date_trunc('month',CURRENT_DATE),interval '1 month') AS month_start) SELECT to_char(m.month_start,'YYYY-MM') AS month,COALESCE(SUM(t.amount_cents) FILTER (WHERE t.kind='income'),0)::int AS value FROM months m LEFT JOIN app.transactions t ON t.organization_id=$1 AND date_trunc('month',t.transaction_date)=m.month_start GROUP BY m.month_start ORDER BY m.month_start`, [session.organizationId]),
     pool.query(`SELECT t.id,to_char(t.transaction_date,'YYYY-MM-DD') "transactionDate",t.label,t.kind,t.amount_cents::int "amountCents",t.status,c.name "categoryName" FROM app.transactions t LEFT JOIN app.categories c ON c.id=t.category_id WHERE t.organization_id=$1 ORDER BY t.transaction_date DESC,t.created_at DESC LIMIT 5`, [session.organizationId]),
+    pool.query(`SELECT id,name,rate::float8,effective_from "effectiveFrom",effective_to "effectiveTo" FROM app.retrocession_rules WHERE organization_id=$1 AND status='active' AND effective_from<=CURRENT_DATE AND (effective_to IS NULL OR effective_to>=CURRENT_DATE) LIMIT 1`, [session.organizationId]),
   ]);
-  const s = summary.rows[0]; response.json({ summary: { incomeCents: s.income, expenseCents: s.expense, netCents: s.income-s.expense, pendingCount: s.pending }, chart: chart.rows, recent: recent.rows });
+  const s = summary.rows[0];
+  const rule = retrocessionRule.rows[0];
+  const eligibleAmountCents = s.income as number;
+  response.json({ summary: { incomeCents: s.income, expenseCents: s.expense, netCents: s.income-s.expense, pendingCount: s.pending }, chart: chart.rows, recent: recent.rows, retrocession: rule ? { ...rule, eligibleAmountCents, dueAmountCents: calculatePercentageRetrocession({ eligibleAmountInCents: eligibleAmountCents, rate: rule.rate }) } : null });
 });
 
 apiRouter.get('/audit-events', requireRole('owner','admin','reader'), async (request, response) => { const { session } = request as AuthenticatedRequest; const result = await pool.query(`SELECT a.id,a.action,a.entity_type "entityType",a.entity_id "entityId",a.metadata,a.created_at "createdAt",concat(u.first_name,' ',u.last_name) actor FROM app.audit_events a LEFT JOIN app.users u ON u.id=a.actor_id WHERE a.organization_id=$1 ORDER BY a.created_at DESC LIMIT 100`, [session.organizationId]); response.json({ items: result.rows }); });

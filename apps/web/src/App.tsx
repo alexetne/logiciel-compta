@@ -89,12 +89,12 @@ function App() {
             </article>
 
             <article className="card retrocession-card">
-              <div className="card-heading"><div><h2>Configurateur de rétrocession</h2><p>Aperçu de la règle active</p></div><span className="status warning">À valider</span></div>
-              <div className="split-config">
-                <div className="split-flow"><div><span>Honoraires</span><strong>150,00 €</strong></div><Icon>arrow_forward</Icon><div><span>Praticien · 80 %</span><strong>120,00 €</strong></div></div>
-                <div className="clinic-share"><span>Part cabinet · 20 %</span><strong>30,00 €</strong></div>
+              <div className="card-heading"><div><h2>Configurateur de rétrocession</h2><p>{dashboard?.retrocession?.name ?? 'Aucune règle active'}</p></div><span className={`status ${dashboard?.retrocession ? 'success' : 'warning'}`}>{dashboard?.retrocession ? 'Active' : 'À configurer'}</span></div>
+              {dashboard?.retrocession ? <div className="split-config">
+                <div className="split-flow"><div><span>Honoraires éligibles</span><strong>{euro(dashboard.retrocession.eligibleAmountCents)}</strong></div><Icon>arrow_forward</Icon><div><span>Praticien · {100 - dashboard.retrocession.rate} %</span><strong>{euro(dashboard.retrocession.eligibleAmountCents - dashboard.retrocession.dueAmountCents)}</strong></div></div>
+                <div className="clinic-share"><span>Part cabinet · {dashboard.retrocession.rate} %</span><strong>{euro(dashboard.retrocession.dueAmountCents)}</strong></div>
                 <button className="secondary-button"><Icon>tune</Icon>Modifier les règles</button>
-              </div>
+              </div> : <div className="split-config"><p>Créez et activez une règle via l’API pour calculer automatiquement la part du cabinet.</p></div>}
             </article>
           </section>
 

@@ -4,6 +4,7 @@ export type DashboardData = {
   summary: { incomeCents: number; expenseCents: number; netCents: number; pendingCount: number };
   chart: { month: string; value: number }[];
   recent: { id: string; transactionDate: string; label: string; kind: 'income' | 'expense'; amountCents: number; status: 'pending' | 'reconciled' | 'needs_review'; categoryName: string | null }[];
+  retrocession: { id: string; name: string; rate: number; effectiveFrom: string; effectiveTo: string | null; eligibleAmountCents: number; dueAmountCents: number } | null;
 };
 
 type LoginResponse = { token: string };

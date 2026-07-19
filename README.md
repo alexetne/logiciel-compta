@@ -302,7 +302,7 @@ La charte graphique adoptée et ses règles d'implémentation sont documentées 
 
 ### Architecture cible
 
-Les prochains modules du back devront être organisés par domaine (`auth`, `organizations`, `transactions`, `banking`, `documents`, `contracts`, `retrocessions`, `reports`, `audit`) avec, pour chacun, routes, schémas de validation, service métier et accès aux données. PostgreSQL est recommandé pour garantir transactions, contraintes et historisation. Un ORM/migrationnaire devra être choisi avant d’introduire le schéma persistant.
+Le back s’appuie sur PostgreSQL et sur des migrations SQL versionnées. Les modules suivants seront progressivement isolés par domaine (`auth`, `organizations`, `transactions`, `banking`, `documents`, `contracts`, `retrocessions`, `reports`, `audit`) avec, pour chacun, routes, schémas de validation, service métier et accès aux données.
 
 ## Installation et commandes
 
@@ -415,8 +415,11 @@ Toutes les entrées devront être validées. Les listes devront utiliser paginat
 - `GET/POST /api/transactions` avec filtres, pagination et rapprochement manuel ;
 - `POST /api/imports/csv` pour les colonnes `date;label;amount;kind;category` ;
 - `GET/POST /api/documents` pour les justificatifs PDF, JPEG et PNG ;
-- `GET /api/dashboard` pour les agrégats et mouvements récents ;
+- `GET/POST /api/retrocession-rules` et `PATCH /api/retrocession-rules/:id/activate` pour les règles versionnées par cabinet ;
+- `GET /api/dashboard` pour les agrégats, mouvements récents et le calcul de rétrocession issu de la règle active ;
 - `GET /api/audit-events` pour la piste d'audit du cabinet.
+
+La CI et la pipeline de release démarrent une base PostgreSQL vierge, appliquent toutes les migrations puis le seed avant les tests, le lint et les builds. Une migration non applicable bloque donc la livraison.
 
 Après `npm run db:setup`, le compte local est `demo@paramecompta.fr` avec le mot de passe `Demo123!`. Il est réservé au développement et ne doit jamais être reproduit en production.
 

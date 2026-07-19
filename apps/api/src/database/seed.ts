@@ -38,6 +38,7 @@ async function seed(): Promise<void> {
     for (const [date, label, kind, amount, categoryCode, status] of transactions) {
       await client.query(`INSERT INTO app.transactions (organization_id,created_by,category_id,kind,transaction_date,label,counterparty,amount_cents,status,external_reference) SELECT $1,$2,c.id,$3,$4,$5,$5,$6,$7,$8 FROM app.categories c WHERE c.organization_id=$1 AND c.code=$9 AND NOT EXISTS (SELECT 1 FROM app.transactions t WHERE t.organization_id=$1 AND t.external_reference=$8)`, [ids.organization, ids.user, kind, date, label, amount, status, `demo-${date}-${categoryCode}`, categoryCode]);
     }
+    await client.query(`INSERT INTO app.retrocession_rules (organization_id,name,rate,effective_from,status,created_by) SELECT $1,'Règle cabinet standard',20,'2026-01-01','active',$2 WHERE NOT EXISTS (SELECT 1 FROM app.retrocession_rules WHERE organization_id=$1 AND status='active')`, [ids.organization,ids.user]);
     await client.query('COMMIT');
     console.log('Données de démonstration créées : demo@paramecompta.fr / Demo123!');
   } catch (error) {
